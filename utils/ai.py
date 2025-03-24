@@ -84,8 +84,18 @@ class MyMagics(Magics):
         # Wrap the coroutine call using asyncio.run or an event loop
         import nest_asyncio
         import asyncio
+        
+        # Get current user namespace
+        user_ns = get_ipython().user_ns
+
+        # Replace $var with its value from user_ns
+        def substitute_vars(text):
+            return re.sub(r'\$(\w+)', lambda m: str(user_ns.get(m.group(1), f"<undefined:{m.group(1)}>")), text)
+
+        substituted_cell = substitute_vars(cell)
+        
         nest_asyncio.apply()
-        return asyncio.run(self.questionasync(cell))
+        return asyncio.run(self.questionasync(substituted_cell))
 
     async def questionasync(self, cell):
         answer = await kernel.invoke(chat_function, KernelArguments(user_input=cell, history=chat_history))
