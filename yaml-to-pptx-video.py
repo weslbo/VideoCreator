@@ -20,7 +20,7 @@ speechsdk._log_level = speechsdk.LogLevel.Error
 
 load_dotenv()
 
-client = AzureOpenAI(azure_endpoint=os.getenv("AZURE_ENDPOINT"), api_version="2024-02-15-preview", api_key=os.getenv("OPENAI_API_KEY"))
+client = AzureOpenAI(azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"), api_version="2024-02-15-preview", api_key=os.getenv("AZURE_OPENAI_API_KEY"))
 speech_config = speechsdk.SpeechConfig(subscription=os.getenv("SPEECH_KEY"), region=os.getenv("SPEECH_REGION"))
 speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat.Riff24Khz16BitMonoPcm)  
 

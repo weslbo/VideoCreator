@@ -67,7 +67,7 @@ chat_history.add_system_message("You are a helpful AI Assistant. Answer to the p
 
 image_client = AzureOpenAI(
     api_version="2024-02-01",
-    azure_endpoint="https://aiwedebols-swedencentral.openai.azure.com/",
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     api_key=os.environ["AZURE_OPENAI_API_KEY"],
 )
 
