@@ -1,0 +1,9 @@
+.venv
+.env
+.DS_Store
+/video
+/audio
+/output
+/slides
+__pycache__
+layouts.txt

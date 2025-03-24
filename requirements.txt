@@ -1,0 +1,5 @@
+pyyaml
+python-pptx
+azure.cognitiveservices.speech
+AzureOpenAI
+python-dotenv
