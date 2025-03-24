@@ -1,8 +1,16 @@
 from __future__ import print_function
 from IPython.core.magic import (Magics, magics_class, line_magic, cell_magic, line_cell_magic)
 from IPython import get_ipython
-from IPython.display import Audio, display, Video
+from IPython.display import Audio, display, Video, Image
 from IPython.display import display, Markdown, Latex, HTML
+from semantic_kernel import Kernel
+from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+from semantic_kernel.contents import ChatHistory
+from semantic_kernel.connectors.ai.open_ai import AzureChatPromptExecutionSettings, OpenAIChatPromptExecutionSettings
+from semantic_kernel.prompt_template import PromptTemplateConfig
+from semantic_kernel.prompt_template.input_variable import InputVariable
+from semantic_kernel.functions import KernelArguments
+from openai import AzureOpenAI
 from urllib.parse import urljoin
 import os, fnmatch
 import requests
@@ -14,11 +22,79 @@ import uuid
 import time
 import subprocess
 
+kernel = Kernel()
+
+kernel.add_service(
+    AzureChatCompletion(
+        service_id="default",
+    ),
+)
+
+execution_settings = AzureChatPromptExecutionSettings(
+        service_id="default",
+        ai_model_id="gpt-4o",
+        max_tokens=10000,
+        temperature=0.4,
+    )
+
+prompt = """
+Assistant can have a conversation with you about any topic.
+It can give explicit instructions or say 'I don't know' if it does not have an answer.
+
+{{$history}}
+User: {{$user_input}}
+Assistant: """
+
+prompt_template_config = PromptTemplateConfig(
+    template=prompt,
+    name="chat",
+    template_format="semantic-kernel",
+    input_variables=[
+        InputVariable(name="user_input", description="The user input", is_required=True),
+        InputVariable(name="history", description="The conversation history", is_required=True),
+    ],
+    execution_settings=execution_settings,
+)
+
+chat_function = kernel.add_function(
+    function_name="chat",
+    plugin_name="chatPlugin",
+    prompt_template_config=prompt_template_config,
+)
+
+chat_history = ChatHistory()
+chat_history.add_system_message("You are a helpful AI Assistant. Answer to the point and limit your output so your answers are simple to understand. Highlight the most important keywords in **bold**.")
+
+image_client = AzureOpenAI(
+    api_version="2024-02-01",
+    azure_endpoint="https://aiwedebols-swedencentral.openai.azure.com/",
+    api_key=os.environ["AZURE_OPENAI_API_KEY"],
+)
 
 # The class MUST call this class decorator at creation time
 @magics_class
 class MyMagics(Magics):
     
+    @cell_magic
+    def question(self, line, cell):
+        """
+        Custom magic command for interacting with Azure OpenAI GPT model.
+        Keeps track of conversation history.
+        """
+        # Wrap the coroutine call using asyncio.run or an event loop
+        import nest_asyncio
+        import asyncio
+        nest_asyncio.apply()
+        return asyncio.run(self.questionasync(cell))
+
+    async def questionasync(self, cell):
+        answer = await kernel.invoke(chat_function, KernelArguments(user_input=cell, history=chat_history))
+
+        # Show the response
+        display(Markdown(str(answer)))
+
+        chat_history.add_user_message(cell)
+        chat_history.add_assistant_message(str(answer))
 
     @cell_magic
     def audio(self, line, cell):
@@ -48,7 +124,35 @@ class MyMagics(Magics):
         result = speech_synthesizer.speak_text_async(cell).get()
     
         display(Audio(mp3_filename, autoplay=True))
+        
+    @cell_magic
+    def image(self, line, cell):
+        """
+        Custom magic command for interacting with Azure OpenAI GPT model.
+        Keeps track of conversation history.
+        """
+        # Wrap the coroutine call using asyncio.run or an event loop
+        import nest_asyncio
+        import asyncio
+        nest_asyncio.apply()
+        return asyncio.run(self.imageasync(cell))
+    
+    async def imageasync(self, cell):
+        result = image_client.images.generate(
+            model="dall-e-3", # the name of your DALL-E 3 deployment
+            prompt=cell,
+            n=1
+        )
 
+        image_url = json.loads(result.model_dump_json())['data'][0]['url']
+        image_response = requests.get(image_url)
+        image_filename = f"./images/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M')}.png"
+        with open(image_filename, 'wb') as file:
+            file.write(image_response.content)
+            
+        display(Image(image_filename))
+
+        
     @cell_magic
     def video(self, line, cell):
         """
